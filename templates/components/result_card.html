@@ -1,0 +1,48 @@
+<div class="bg-gray-50 p-4 rounded-md">
+    <h3 class="text-xl font-semibold mb-2">Analysis Results</h3>
+    <div class="grid md:grid-cols-2 gap-6">
+        <div>
+            <h4 class="font-medium mb-2">Image Information</h4>
+            <p>Filename: {{ features.image_name }}</p>
+            <p>Resolution: {{ features.image_size[0] }} × {{ features.image_size[1] }}</p>
+            <div class="mt-4">
+                <h4 class="font-medium mb-2">Prediction</h4>
+                <div class="flex items-center">
+                    <span class="text-lg font-bold {{ 'text-secondary' if prediction.classification == 'Malignant' else 'text-green-600' }}">
+                        {{ prediction.classification }}
+                    </span>
+                    <span class="ml-2 text-sm bg-gray-200 px-2 py-1 rounded">
+                        {{ (prediction.confidence * 100)|round }}% confidence
+                    </span>
+                </div>
+                <div class="mt-2">
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="h-2.5 rounded-full {{ 'bg-secondary' if prediction.classification == 'Malignant' else 'bg-green-600' }}"
+                             style="width: {{ prediction.probability * 100 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div>
+            <h4 class="font-medium mb-2">Feature Visualization</h4>
+            <div class="bg-gray-100 h-48 rounded flex items-center justify-center">
+                <p class="text-gray-500">Feature visualization placeholder</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Detailed Features Section -->
+    <div class="mt-6">
+        <h4 class="font-medium mb-2">Detailed Features</h4>
+        <button class="bg-primary text-white px-3 py-1 text-sm rounded" 
+                onclick="document.getElementById('detailed-features').classList.toggle('hidden')">
+            Show/Hide Features
+        </button>
+        
+        <div id="detailed-features" class="mt-3 hidden">
+            <div class="grid md:grid-cols-3 gap-3 text-sm">
+                <!-- Add feature details here -->
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Breast Cancer Detection System{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0369a1',
+                        secondary: '#f43f5e',
+                        light: '#f0f9ff',
+                        dark: '#0f172a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0369a1;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-light text-dark">
+    <header class="bg-primary text-white p-6 shadow-md">
+        <div class="container mx-auto">
+            <h1 class="text-3xl font-bold">Breast Cancer Detection System</h1>
+            <p class="mt-2">Upload an X-ray image for analysis</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-6 max-w-4xl">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-dark text-white p-6 mt-8">
+        <div class="container mx-auto">
+            <p class="text-center text-sm">
+                Disclaimer: This tool is for demonstration purposes only and should not replace professional medical diagnosis.
+            </p>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

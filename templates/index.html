@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breast Cancer Detection System</title>
+    <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0369a1',
+                        secondary: '#f43f5e',
+                        light: '#f0f9ff',
+                        dark: '#0f172a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0369a1;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-light text-dark">
+    <!-- <header class="bg-primary text-white p-6 shadow-md">
+        <div class="container mx-auto">
+            <h1 class="text-3xl font-bold">Breast Cancer Detection System</h1>
+            <p class="mt-2">Upload an X-ray image for analysis</p>
+        </div>
+    </header> -->
+
+    <main class="container mx-auto p-6 max-w-4xl">
+        {% extends "layout.html" %}
+
+        {% block content %}
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-semibold mb-4">Image Analysis</h2>
+            
+            <!-- Upload Form -->
+            <form hx-post="/process-image" 
+                  hx-encoding="multipart/form-data"
+                  hx-target="#results"
+                  hx-indicator="#loading"
+                  class="mb-8"
+                  id="upload-form">
+                <div class="mb-4">
+                    <label for="xray" class="block text-sm font-medium mb-2">X-ray Image</label>
+                    <input type="file" id="xray" name="xray" accept="image/*"
+                           class="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    <p class="text-sm text-gray-500 mt-1">Supported formats: JPG, PNG, DICOM (converted)</p>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button type="submit" class="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-md transition-colors">
+                        Analyze Image
+                    </button>
+                    <button type="button" id="clear-button" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md transition-colors">
+                        Clear
+                    </button>
+                    <span id="loading" class="loader ml-3 hidden"></span>
+                </div>
+            </form>
+            
+            <!-- Results Section -->
+            <div id="results" class="border-t pt-4"></div>
+            
+            <!-- Template for Results -->
+            <template id="result-template">
+                <div class="bg-gray-50 p-4 rounded-md">
+                    <h3 class="text-xl font-semibold mb-2">Analysis Results</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium mb-2">Image Information</h4>
+                            <p>Filename: <span id="image-name"></span></p>
+                            <p>Resolution: <span id="image-resolution"></span></p>
+                            <div class="mt-4">
+                                <h4 class="font-medium mb-2">Prediction</h4>
+                                <div class="flex items-center">
+                                    <span id="prediction-label" class="text-lg font-bold"></span>
+                                    <span id="prediction-confidence" class="ml-2 text-sm bg-gray-200 px-2 py-1 rounded"></span>
+                                </div>
+                                <div class="mt-2">
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div id="prediction-bar" class="h-2.5 rounded-full"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-medium mb-2">Key Metrics</h4>
+                            <div id="key-metrics" class="bg-gray-100 p-4 rounded">
+                                <p class="text-sm text-gray-500">Loading key metrics...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Feature Visualization Section - Moved to be a parent component -->
+                    <div class="mt-6 border-t pt-6">
+                        <h4 class="text-xl font-semibold mb-4">Feature Visualization</h4>
+                        <div id="feature-visualization" class="bg-gray-100 rounded flex flex-col items-center justify-center p-4" style="min-height: 300px; height: calc(50vh - 100px);">
+                            <p class="text-gray-500">Feature visualization placeholder</p>
+                        </div>
+                        <div id="viz-controls" class="mt-4 text-center">
+                            <!-- Visualization controls will be added here by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Detailed Features Section -->
+                    <div class="mt-6">
+                        <h4 class="font-medium mb-2">Detailed Features</h4>
+                        <button class="bg-primary text-white px-3 py-1 text-sm rounded" 
+                                onclick="toggleFeatures()">Show/Hide Features</button>
+                        
+                        <div id="detailed-features" class="mt-3 hidden">
+                            <div class="grid md:grid-cols-3 gap-3 text-sm">
+                                <div class="p-3 bg-white rounded shadow-sm">
+                                    <h5 class="font-medium border-b pb-1 mb-2">Mean Values</h5>
+                                    <div id="mean-features"></div>
+                                </div>
+                                <div class="p-3 bg-white rounded shadow-sm">
+                                    <h5 class="font-medium border-b pb-1 mb-2">Standard Error</h5>
+                                    <div id="se-features"></div>
+                                </div>
+                                <div class="p-3 bg-white rounded shadow-sm">
+                                    <h5 class="font-medium border-b pb-1 mb-2">Worst Values</h5>
+                                    <div id="worst-features"></div>
+                                </div>
+                            </div>
+                            <div class="mt-3 text-right">
+                                <button class="bg-gray-200 hover:bg-gray-300 px-3 py-1 text-sm rounded" 
+                                        onclick="downloadFeatures()">Download Features (JSON)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow-md mt-6">
+            <h2 class="text-2xl font-semibold mb-4">How It Works</h2>
+            <div class="grid md:grid-cols-3 gap-4 text-center">
+                <div class="p-4 border rounded-md">
+                    <div class="text-3xl text-primary mb-2">1</div>
+                    <h3 class="font-medium">Upload X-ray</h3>
+                    <p class="text-sm text-gray-600">Upload a breast X-ray image for analysis</p>
+                </div>
+                <div class="p-4 border rounded-md">
+                    <div class="text-3xl text-primary mb-2">2</div>
+                    <h3 class="font-medium">Image Processing</h3>
+                    <p class="text-sm text-gray-600">AI extracts features from the image</p>
+                </div>
+                <div class="p-4 border rounded-md">
+                    <div class="text-3xl text-primary mb-2">3</div>
+                    <h3 class="font-medium">Prediction</h3>
+                    <p class="text-sm text-gray-600">Model analyzes features to predict cancer presence</p>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+    </main>
+
+    <footer class="bg-dark text-white p-6 mt-8">
+        <div class="container mx-auto">
+            <p class="text-center text-sm">
+                Disclaimer: This tool is for demonstration purposes only and should not replace professional medical diagnosis.
+            </p>
+        </div>
+    </footer>
+
+    {% block scripts %}
+    <script>
+        // Add clear button functionality
+        document.getElementById('clear-button').addEventListener('click', function() {
+            // Clear the file input
+            document.getElementById('upload-form').reset();
+            
+            // Clear the results area
+            document.getElementById('results').innerHTML = '';
+            
+            // Clear any stored features
+            window.extractedFeatures = null;
+            window.currentFeatures = null;
+        });
+        
+        document.body.addEventListener('htmx:afterSwap', function(event) {
+            if (event.detail.target.id === 'results') {
+                try {
+                    const response = JSON.parse(event.detail.xhr.responseText);
+                    
+                    if (response.error) {
+                        document.getElementById('results').innerHTML = `
+                            <div class="bg-red-50 text-red-700 p-4 rounded-md">
+                                <p class="font-medium">Error</p>
+                                <p>${response.error}</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // Clone the template
+                    const template = document.getElementById('result-template');
+                    const clone = template.content.cloneNode(true);
+                    
+                    // Fill in the data
+                    clone.getElementById('image-name').textContent = response.features.image_name;
+                    clone.getElementById('image-resolution').textContent = `${response.features.image_size[0]} × ${response.features.image_size[1]}`;
+                    
+                    const predictionLabel = clone.getElementById('prediction-label');
+                    predictionLabel.textContent = response.prediction.classification;
+                    predictionLabel.classList.add(
+                        response.prediction.classification === 'Malignant' ? 'text-secondary' : 'text-green-600'
+                    );
+                    
+                    clone.getElementById('prediction-confidence').textContent = 
+                        `${Math.round(response.prediction.confidence * 100)}% confidence`;
+                    
+                    const predictionBar = clone.getElementById('prediction-bar');
+                    predictionBar.style.width = `${response.prediction.probability * 100}%`;
+                    predictionBar.classList.add(
+                        response.prediction.classification === 'Malignant' ? 'bg-secondary' : 'bg-green-600'
+                    );
+                    
+                    // Populate the feature sections
+                    const meanFeatures = clone.getElementById('mean-features');
+                    const seFeatures = clone.getElementById('se-features');
+                    const worstFeatures = clone.getElementById('worst-features');
+                    
+                    // Store the features for potential download
+                    window.extractedFeatures = response.features;
+                    
+                    // Populate features by category
+                    for (const [key, value] of Object.entries(response.features)) {
+                        if (key === 'image_name' || key === 'image_size') continue;
+                        
+                        const formattedValue = typeof value === 'number' ? value.toFixed(4) : value;
+                        const featureElement = `<div class="py-1 border-b border-gray-100">
+                            <span class="font-medium">${formatFeatureName(key)}:</span> 
+                            <span class="float-right">${formattedValue}</span>
+                        </div>`;
+                        
+                        if (key.endsWith('_mean')) {
+                            meanFeatures.innerHTML += featureElement;
+                        } else if (key.endsWith('_se')) {
+                            seFeatures.innerHTML += featureElement;
+                        } else if (key.endsWith('_worst')) {
+                            worstFeatures.innerHTML += featureElement;
+                        }
+                    }
+                    
+                    // Replace the results div with the populated template
+                    document.getElementById('results').innerHTML = '';
+                    document.getElementById('results').appendChild(clone);
+                    
+                    // Request feature visualization after showing results
+                    if (response.features) {
+                        requestFeatureVisualization(response.features);
+                    }
+                    
+                    // Request key metrics
+                    fetch("/key-metrics", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            features: response.features,
+                            prediction: response.prediction
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(metrics => {
+                        const keyMetricsContainer = document.getElementById('key-metrics');
+                        keyMetricsContainer.innerHTML = `
+                            <div class="flex justify-between">
+                                <span>Data Quality:</span>
+                                <span class="font-medium">${metrics.data_quality}%</span>
+                            </div>
+                            <div class="flex justify-between mt-2">
+                                <span>Confidence:</span>
+                                <span class="font-medium">${metrics.confidence.toFixed(2)}%</span>
+                            </div>
+                            <div class="mt-2">
+                                <span class="font-medium">Risk Level:</span>
+                                <span>${metrics.risk_level}</span>
+                            </div>
+                            <div class="mt-2">
+                                <h4 class="font-medium mb-1">Top Factors</h4>
+                                ${metrics.top_factors.map(f => `
+                                    <div class="flex justify-between">
+                                        <span>${f.name}:</span>
+                                        <span>${f.value}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    })
+                    .catch(error => {
+                        console.error("Error fetching key metrics:", error);
+                    });
+                    
+                } catch (e) {
+                    console.error("Error parsing response:", e);
+                }
+            }
+        });
+        
+        function requestFeatureVisualization(features) {
+            // Use direct URL path instead of url_for
+            fetch("/feature_visualization", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    features: features,
+                    type: 'importance'  // Default visualization type
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    console.error("Visualization error:", data.error);
+                    return;
+                }
+                
+                // Display the visualization
+                const vizContainer = document.getElementById('feature-visualization');
+                vizContainer.innerHTML = `<img src="data:image/png;base64,${data.visualization}" 
+                                           class="max-w-full max-h-full object-contain" alt="Feature visualization">`;
+                
+                // Add visualization type selector
+                const vizControlsContainer = document.getElementById('viz-controls');
+                vizControlsContainer.innerHTML = `
+                    <div class="inline-flex rounded-md shadow-sm" role="group">
+                        <button type="button" onclick="changeVizType('importance')" 
+                                class="px-3 py-2 text-sm font-medium bg-violet-300 border border-gray-300 rounded-l-md hover:bg-gray-100">
+                            Importance
+                        </button>
+                        <button type="button" onclick="changeVizType('comparison')" 
+                                class="px-3 py-2 text-sm font-medium bg-blue-200 border-t border-b border-r border-gray-300 hover:bg-gray-100">
+                            Comparison
+                        </button>
+                        <button type="button" onclick="changeVizType('distribution')" 
+                                class="px-3 py-2 text-sm font-medium bg-yellow-300 border border-gray-300 rounded-r-md hover:bg-gray-100">
+                            Distribution
+                        </button>
+                    </div>
+                `;
+                
+                // Store features for later use
+                window.currentFeatures = features;
+                
+            })
+            .catch(error => {
+                console.error('Error requesting visualization:', error);
+                const vizContainer = document.getElementById('feature-visualization');
+                vizContainer.innerHTML = `<div class="p-4 text-center text-red-600">
+                    Error loading visualization: ${error.message}
+                </div>`;
+            });
+        }
+        
+        function changeVizType(vizType) {
+            if (!window.currentFeatures) return;
+            
+            const vizContainer = document.getElementById('feature-visualization');
+            // Add loading indicator
+            vizContainer.innerHTML = `<div class="loader"></div>`;
+            
+            // Use direct URL path instead of url_for
+            fetch("/feature_visualization", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    features: window.currentFeatures,
+                    type: vizType
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    console.error("Visualization error:", data.error);
+                    return;
+                }
+                
+                // Update the visualization
+                vizContainer.innerHTML = `<img src="data:image/png;base64,${data.visualization}" 
+                                          class="max-w-full max-h-full object-contain" alt="Feature visualization">`;
+            })
+            .catch(error => {
+                console.error('Error changing visualization type:', error);
+                vizContainer.innerHTML = `<div class="p-4 text-center text-red-600">
+                    Error loading visualization: ${error.message}
+                </div>`;
+            });
+        }
+        
+        function toggleFeatures() {
+            const featuresDiv = document.getElementById('detailed-features');
+            featuresDiv.classList.toggle('hidden');
+        }
+        
+        function downloadFeatures() {
+            if (!window.extractedFeatures) return;
+            
+            const dataStr = JSON.stringify(window.extractedFeatures, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportName = `features_${window.extractedFeatures.image_name.split('.')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportName);
+            linkElement.click();
+        }
+        
+        function formatFeatureName(name) {
+            return name
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+        }
+    </script>
+    {% endblock %}
+</body>
+</html>
